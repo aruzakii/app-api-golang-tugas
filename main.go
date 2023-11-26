@@ -7,47 +7,38 @@ import (
 	"os"
 	"simpel-app-auth/auth"
 	"simpel-app-auth/middleware"
+	"simpel-app-auth/models"
+	_ "simpel-app-auth/models"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	"github.com/joho/godotenv"
 
+	"crypto/sha256"
+	_ "crypto/sha256"
+	"encoding/hex"
+	_ "encoding/hex"
+
+	"github.com/gin-contrib/cors"
 	_ "github.com/lib/pq"
 )
 
-type GormStudent struct {
-	Stud_id       uint64 `json:"stud_id" binding:"required"`
-	Stud_name     string `json:"stud_name" binding:"required"`
-	Stud_age      uint64 `json:"stud_age" binding:"required"`
-	Stud_address  string `json:"stud_address" binding:"required"`
-	Stud_phonenum string `json:"stud_phonenum" binding:"required"`
-}
+// type GormStudent struct {
+// 	Stud_id       uint64 `json:"stud_id" gorm:"AUTO_INCREMENT"`
+// 	Stud_name     string `json:"stud_name" binding:"required"`
+// 	Stud_age      uint64 `json:"stud_age" binding:"required"`
+// 	Stud_address  string `json:"stud_address" binding:"required"`
+// 	Stud_phonenum string `json:"stud_phonenum" binding:"required"`
+// }
+
+// type User struct {
+// 	ID       uint   `gorm:"primaryKey" json:"id"`
+// 	Username string `json:"username" binding:"required"`
+// 	Password string `json:"password" binding:"required"`
+// }
 
 func postHandler(ctx *gin.Context, db *gorm.DB) {
-	var data GormStudent
-
-	// if ctx.Bind(&data) == nil {
-	// 	_, err := db.Exec("insert into students values ($1,$2,$3,$4,$5)", data.Stud_id, data.Stud_name, data.Stud_age, data.Stud_address, data.Stud_phonenum)
-
-	// 	if err != nil {
-	// 		ctx.JSON(http.StatusBadRequest, gin.H{
-	// 			"massage": err.Error(),
-	// 		})
-	// 		return
-	// 	}
-
-	// 	ctx.JSON(http.StatusOK, gin.H{
-	// 		"message": "created ok",
-	// 	})
-	// 	return
-	// }
-
-	// ctx.JSON(http.StatusBadRequest, gin.H{
-	// 	"message": "error",
-	// })
-
-	//Dengan Gorm
-	//Bind adalah metode yang digunakan dalam konteks HTTP yang bertujuan untuk mengambil dan memparsing data dari permintaan HTTP yang masuk.
+	var data models.GormStudent
 	if ctx.Bind(&data) == nil { //data yang dikirim saat http tidak kosong
 		db.Create(&data)
 		ctx.JSON(http.StatusOK, gin.H{
@@ -64,31 +55,14 @@ func postHandler(ctx *gin.Context, db *gorm.DB) {
 }
 
 func getHandler(ctx *gin.Context, db *gorm.DB) {
-	// var data []GormStudent
-	// studId := ctx.Param("stud_id")                                             //ini dapet nya nanti saat kita masukin param di uri
-	// rows, err := db.Query("select * from students where stud_id = $1", studId) //$1 itu kitamsukan nilai dari studId
-
-	// if err != nil {
-	// 	ctx.JSON(http.StatusInternalServerError, gin.H{
-	// 		"error": err.Error(),
-	// 	})
-	// 	return
-	// }
-
-	// rowTostuct(rows, &data)
-
-	// ctx.JSON(http.StatusOK, gin.H{
-	// 	"status": "success",
-	// 	"data":   data,
-	// })
 
 	//dengan gorm
-	var data GormStudent
+	var data models.GormStudent
 
 	studId := ctx.Param("stud_id")
 	// id, _ := strconv.ParseUint(studId, 10, 64)
 
-	// data := GormStudent{Stud_id: id}
+	// data := models.GormStudent{Stud_id: id}
 	// Dalam contoh di atas, data akan memiliki nilai yang sama dengan nilai id
 	if db.Find(&data, "stud_id=?", studId).RecordNotFound() {
 		ctx.JSON(http.StatusNotFound, gin.H{
@@ -105,31 +79,9 @@ func getHandler(ctx *gin.Context, db *gorm.DB) {
 }
 
 func getAllHandler(ctx *gin.Context, db *gorm.DB) {
-	// var data []GormStudent
-	// rows, err := db.Query("select * from students")
-
-	// if err != nil {
-	// 	ctx.JSON(http.StatusInternalServerError, gin.H{
-	// 		"error": err.Error(),
-	// 	})
-	// 	return
-	// }
-	// rowTostuct(rows, &data)
-
-	// if data == nil {
-	// 	ctx.JSON(http.StatusNotFound, gin.H{
-	// 		"massage": "data not found",
-	// 	})
-	// 	return
-	// }
-	// ctx.JSON(http.StatusOK, gin.H{
-	// 	"status": "success",
-	// 	"data":   data,
-	// })
-
 	//Getallstudent Dengan Gorm
 
-	var data []GormStudent
+	var data []models.GormStudent
 	//kenapa harus pakai &data karena untuk daat fungsi find dijalankan dia bisa memproses dan merubah nilai
 	//di variabel data diatasnya
 	db.Find(&data) //untuk mencari /men get semua data yang ada di tabel di database
@@ -141,26 +93,9 @@ func getAllHandler(ctx *gin.Context, db *gorm.DB) {
 }
 
 func putHandler(c *gin.Context, db *gorm.DB) {
-	// var data GormStudent
-	// studId := c.Param("stud_id")
-
-	// if c.Bind(&data) == nil {
-	// 	_, err := db.Exec("update students set stud_name=$1 where stud_id=$2", data.Stud_name, studId)
-
-	// 	if err != nil {
-	// 		c.JSON(http.StatusInternalServerError, gin.H{
-	// 			"error": err.Error(),
-	// 		})
-	// 		return
-	// 	}
-	// 	c.JSON(http.StatusOK, gin.H{
-	// 		"status":  "success",
-	// 		"massage": "succes update",
-	// 	})
-	// }
 
 	//dengan gorm
-	var data GormStudent
+	var data models.GormStudent
 
 	studId := c.Param("stud_id")
 
@@ -190,21 +125,8 @@ func putHandler(c *gin.Context, db *gorm.DB) {
 }
 
 func delHandler(c *gin.Context, db *gorm.DB) {
-	// studId := c.Param("stud_id")
 
-	// _, err := db.Exec("delete from students where stud_id=$1", studId)
-
-	// if err != nil {
-	// 	c.JSON(http.StatusInternalServerError, gin.H{
-	// 		"massage": err.Error(),
-	// 	})
-	// 	return
-	// }
-	// c.JSON(http.StatusOK, gin.H{
-	// 	"status":  "succes",
-	// 	"massage": "delete success",
-	// })
-	var data GormStudent
+	var data models.GormStudent
 	studId := c.Param("stud_id")
 
 	db.Delete(&data, "stud_id=?", studId)
@@ -230,17 +152,31 @@ func setupRouter() *gin.Engine {
 	Migrate(db)
 
 	r := gin.Default()
+
+	// Set up CORS middleware
+	config := cors.DefaultConfig()
+	config.AllowOrigins = []string{"http://localhost:3000"} // Ganti sesuai dengan alamat React aplikasi Anda
+	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE"}
+	config.AllowHeaders = []string{"Authorization", "Content-Type"}
+	r.Use(cors.New(config))
+
 	r.GET("/", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{
 			"message": "succes",
 		})
 	})
 
-	r.POST("/login", auth.LoginHandler)
+	r.POST("/register", func(ctx *gin.Context) {
+		auth.RegisterHandlerr(ctx, db)
+	})
+
+	r.POST("/login", func(ctx *gin.Context) {
+		auth.LoginHandler(ctx, db)
+	})
 
 	v1 := r.Group("v1")
 
-	v1.POST("/student", func(ctx *gin.Context) {
+	v1.POST("/student", middleware.AuthValidate, func(ctx *gin.Context) {
 		postHandler(ctx, db)
 	})
 
@@ -252,10 +188,10 @@ func setupRouter() *gin.Engine {
 		getHandler(ctx, db)
 	})
 
-	v1.PUT("/student/:stud_id",middleware.AuthValidate, func(ctx *gin.Context) {
+	v1.PUT("/student/:stud_id", middleware.AuthValidate, func(ctx *gin.Context) {
 		putHandler(ctx, db)
 	})
-	v1.DELETE("/student/:stud_id",middleware.AuthValidate, func(ctx *gin.Context) {
+	v1.DELETE("/student/:stud_id", middleware.AuthValidate, func(ctx *gin.Context) {
 		delHandler(ctx, db)
 	})
 
@@ -270,19 +206,46 @@ func main() {
 }
 
 func Migrate(DB *gorm.DB) {
-	DB.AutoMigrate(&GormStudent{})
+	DB.AutoMigrate(&models.GormStudent{})
 
-	data := GormStudent{}
+	data := models.GormStudent{}
 	if DB.Find(&data).RecordNotFound() {
+		fmt.Println("=============run seeder student ==================")
+		seederStudent(DB)
+	}
+
+	DB.AutoMigrate(&models.User{})
+	// Seeder for User
+	user := models.User{}
+
+	if DB.Find(&user).RecordNotFound() {
 		fmt.Println("=============run seeder user ==================")
 		seederUser(DB)
 	}
 
 }
 
+func sha256Hash(input string) string {
+	hasher := sha256.New()
+	hasher.Write([]byte(input))
+	hashInBytes := hasher.Sum(nil)
+	hashString := hex.EncodeToString(hashInBytes)
+	return hashString
+}
+
 func seederUser(DB *gorm.DB) {
-	data := GormStudent{
-		Stud_id:       1,
+	password := "cungkring"
+	hashedPassword := sha256Hash(password)
+	user := models.User{
+		Username: "admin",
+		Password: hashedPassword,
+	}
+	DB.Create(&user)
+
+}
+
+func seederStudent(DB *gorm.DB) {
+	data := models.GormStudent{
 		Stud_name:     "fahrel",
 		Stud_age:      20,
 		Stud_address:  "jakarta",
@@ -297,7 +260,7 @@ func seederUser(DB *gorm.DB) {
 
 // Kita mengimpor pustaka-pustaka yang diperlukan seperti github.com/gin-gonic/gin untuk framework Gin, github.com/jinzhu/gorm untuk ORM GORM, dan _ "github.com/lib/pq" untuk driver PostgreSQL.
 
-// Kami mendefinisikan struktur data GormStudent yang mencerminkan entitas mahasiswa dengan atribut-atribut seperti stud_id, stud_name, stud_age, stud_address, dan stud_phonenum.
+// Kami mendefinisikan struktur data models.GormStudent yang mencerminkan entitas mahasiswa dengan atribut-atribut seperti stud_id, stud_name, stud_age, stud_address, dan stud_phonenum.
 
 // Fungsi main adalah fungsi utama yang menjalankan aplikasi dan mengatur server web untuk mendengarkan pada port 8080.
 

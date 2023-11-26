@@ -1,51 +1,123 @@
 package auth
 
 import (
+	"encoding/hex"
 	"net/http"
 	"simpel-app-auth/models"
 	"time"
 
-	jwt "github.com/golang-jwt/jwt/v4"
+	"crypto/sha256"
+	_ "crypto/sha256"
 
 	"github.com/gin-gonic/gin"
+	jwt "github.com/golang-jwt/jwt/v4"
+	"github.com/jinzhu/gorm"
 )
 
 const (
-	USER     = "admin"
-	PASSWORD = "cungkring"
-	SECRET   = "secret"
+	SECRET = "secret"
 )
 
-func LoginHandler(c *gin.Context) {
-	var user models.Credential
+func hashPasswordSHA256(password string) string {
+	hash := sha256.New()
+	hash.Write([]byte(password))
+	hashed := hex.EncodeToString(hash.Sum(nil))
+	return hashed
+}
 
-	err := c.Bind(&user)
-
-	if err != nil {
+func RegisterHandlerr(c *gin.Context, db *gorm.DB) {
+	// Bind JSON dari request ke struktur model User
+	var userInput models.User
+	if err := c.BindJSON(&userInput); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "bad request",
+			"message": "Gagal Registerasi,Mohon Isi Kolom Username Dan Password",
 			"error":   err.Error(),
 		})
 		return
 	}
 
-	if user.Username != USER { //jika user yang didapat dari req http tidak sama dengan user yang kita telah tetapkan di const
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"message": "User Invalid",
+	// Periksa apakah username sudah digunakan
+	var existingUser models.User
+	if err := db.Where("username = ?", userInput.Username).First(&existingUser).Error; err == nil {
+		// Jika username sudah ada, kirim respons dengan pesan kesalahan
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Gagal Registrasi, Username sudah digunakan",
 		})
 		return
-	} else {
-		if user.Password != PASSWORD {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"message": "password invalid",
-			})
-			return
-		}
 	}
+
+	// Hash password menggunakan SHA-256
+	hashedPassword := hashPasswordSHA256(userInput.Password)
+
+	// Simpan hashedPassword di database
+	user := models.User{
+		Username: userInput.Username,
+		Password: hashedPassword,
+	}
+	db.Create(&user)
+
+	// Respon sukses
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Registration successful",
+	})
+}
+
+func LoginHandler(c *gin.Context, db *gorm.DB) {
+	var user models.User
+
+	// err := c.Bind(&user)
+
+	// if err != nil {
+	// 	c.JSON(http.StatusBadRequest, gin.H{
+	// 		"message": "bad request",
+	// 		"error":   err.Error(),
+	// 	})
+	// 	return
+	// }
+
+	if err := c.BindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Bad request",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	var userFromDB models.User
+
+	result := db.Where("username = ?", user.Username).First(&userFromDB)
+	if result.RecordNotFound() {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"message": "Invalid username",
+		})
+		return
+	}
+
+	// Hash password yang dimasukkan pengguna dan bandingkan dengan password di database
+	hashedPasswordInput := hashPasswordSHA256(user.Password)
+	if hashedPasswordInput != userFromDB.Password {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"message": "Invalid password",
+		})
+		return
+	}
+	// if user.Username != USER { //jika user yang didapat dari req http tidak sama dengan user yang kita telah tetapkan di const
+	// 	c.JSON(http.StatusUnauthorized, gin.H{
+	// 		"message": "User Invalid",
+	// 	})
+	// 	return
+	// } else {
+	// 	if user.Password != PASSWORD {
+	// 		c.JSON(http.StatusUnauthorized, gin.H{
+	// 			"message": "password invalid",
+	// 		})
+	// 		return
+	// 	}
+	// }
 
 	//token
 	claim := jwt.StandardClaims{
-		ExpiresAt: time.Now().Add(time.Minute * 1).Unix(), //token ini bertahan selama 1 menit setelah 1 menit akan di drop
+		ExpiresAt: time.Now().Add(time.Minute * 3).Unix(), //token ini bertahan selama 1 menit setelah 1 menit akan di drop
 		Issuer:    "test",
 		IssuedAt:  time.Now().Unix(),
 	}
